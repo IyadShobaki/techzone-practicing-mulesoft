@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
-	xmlns:vm="http://www.mulesoft.org/schema/mule/vm"
-	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:vm="http://www.mulesoft.org/schema/mule/vm" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
 http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd
 http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
-http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
 	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="bb70c19e-0aa8-440b-94df-31804f70e298" >
 		<http:listener-connection host="0.0.0.0" port="8081" />
 	</http:listener-config>
@@ -19,6 +20,7 @@ http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/cu
 	<db:config name="Database_Config" doc:name="Database Config" doc:id="4613f0ab-aa84-464a-b3e5-a70185ef599e" >
 		<db:mssql-connection host="localhost" instanceName="MSSQL" port="0" user="sa" password="1234" databaseName="test" />
 	</db:config>
+	<os:object-store name="myObjectStore" doc:name="Object store" doc:id="0c7779ea-d672-46f3-baff-a72adb9337d5" maxEntries="100" entryTtl="10" entryTtlUnit="HOURS" />
 	<flow name="practicing-mulesoftFlow" doc:id="8b1794ae-88ce-4218-8924-7bdf83788918" >
 		<http:listener doc:name="Listener" doc:id="630ef5b8-cddc-49e5-9feb-86bbc11f0348" config-ref="HTTP_Listener_config" path="/vm"/>
 		<set-payload value="#[10]" doc:name="Set Payload" doc:id="01bd6ed9-8418-4b52-a682-5eb8c40cd4a4" />
@@ -72,5 +74,33 @@ output application/json
 			</scheduling-strategy>
 		</db:listener>
 		<logger level="INFO" doc:name="Logger" doc:id="b6b6125c-539e-4a3d-97bc-5002795e6a9b" message="#[payload]"/>
+	</flow>
+	<flow name="practicing-mulesoftFlow4" doc:id="d42d2b18-4730-4fd8-b2dc-e9c277e7c83c" >
+		<scheduler doc:name="Scheduler" doc:id="7265e5b3-1c6d-4691-9e14-859612dffa8c" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="30" timeUnit="SECONDS"/>
+			</scheduling-strategy>
+		</scheduler>
+		<os:retrieve doc:id="93efd28b-e6e0-4bad-bbdf-01841a32d4f6" doc:name="Retrieve maxBankDetailsId" key="maxBankDetailsId" objectStore="myObjectStore" target="lastMaxBankDetailsId">
+			<os:default-value ><![CDATA[0]]></os:default-value>
+		</os:retrieve>
+		<db:select doc:name="Query Accounts" doc:id="c180d7c0-5169-4a35-85e8-b64e1f9d2258" config-ref="Database_Config">
+			<db:sql ><![CDATA[select * from BankDetails where Id > :lastId]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	lastId: vars.lastMaxBankDetailsId
+}]]]></db:input-parameters>
+		</db:select>
+		<logger level="INFO" doc:name="Logger" doc:id="81d430c9-776c-4a36-bade-f330bb101394" message='#["\n\n--------&gt; Total # of records read from database: $(sizeOf(payload))\nLast Max Id: $(vars.lastMaxBankDetailsId as String)\n"]'/>
+		<choice doc:name="Choice" doc:id="c8255608-ad69-4a9d-8d2d-21b6acc0c4b9" >
+			<when expression="#[not isEmpty(payload)]">
+				<os:store doc:name="Store maxBankDetialsId" doc:id="5ad498aa-0d13-4fa2-aff6-f8d90c7e3ccc" key="maxBankDetailsId" objectStore="myObjectStore">
+					<os:value ><![CDATA[#[max(payload.Id as Array)]]]></os:value>
+				</os:store>
+				<logger level="INFO" doc:name="Logger" doc:id="907856a1-6430-4ce9-b9d2-cb6f3543df40" message="#[payload]"/>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Logger" doc:id="0af2f6bd-7ce1-4f1c-833c-565cfef79549" message='#["\n\nThere are no new records to process.....\n\n"]'/>
+			</otherwise>
+		</choice>
 	</flow>
 </mule>
