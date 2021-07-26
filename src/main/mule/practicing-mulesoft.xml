@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:vm="http://www.mulesoft.org/schema/mule/vm"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="bb70c19e-0aa8-440b-94df-31804f70e298" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<vm:config name="VM_Config" doc:name="VM Config" doc:id="150116bd-c8e2-451f-95bb-e9008e75d121" >
+		<vm:queues >
+			<vm:queue queueName="VM1" />
+			<vm:queue queueName="VM2" />
+		</vm:queues>
+	</vm:config>
+	<flow name="practicing-mulesoftFlow" doc:id="8b1794ae-88ce-4218-8924-7bdf83788918" >
+		<http:listener doc:name="Listener" doc:id="630ef5b8-cddc-49e5-9feb-86bbc11f0348" config-ref="HTTP_Listener_config" path="/vm"/>
+		<set-payload value="#[10]" doc:name="Set Payload" doc:id="01bd6ed9-8418-4b52-a682-5eb8c40cd4a4" />
+		<logger level="INFO" doc:name="Logger" doc:id="3266fb2a-49b3-43a6-858a-179c218d67d1" message='#["Before publishing to VM Publish ::::: The payload is " ++ payload as String]'/>
+		<vm:publish-consume queueName="VM1" doc:name="Publish consume" doc:id="dbdb22b7-c5c6-4639-a5b7-5228e5415ab0" config-ref="VM_Config" sendCorrelationId="ALWAYS" correlationId="#[correlationId]"/>
+		<logger level="INFO" doc:name="Logger" doc:id="dfc466ae-5bcc-4fad-ba80-e906b8c367b9" message='#["After publishing to VM Publish ::::: The payload is " ++ payload as String]'/>
+		<ee:transform doc:name="Transform Message" doc:id="a042b9a1-e01b-436b-b0da-b82682c504ac" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"p": payload,
+	"cId": correlationId
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="practicing-mulesoftFlow1" doc:id="58b0f967-e7e5-4ac8-84f1-d448e741224d" >
+		<vm:listener queueName="VM1" doc:name="Listener" doc:id="6b68faf0-7723-489b-9cbb-d27f8480ce6e" config-ref="VM_Config"/>
+		<logger level="INFO" doc:name="Logger" doc:id="564c7aa3-336f-4219-8752-d01be7c2b379" message='#["After message received using VM Listener (before set new payload)::::: The payload is " ++ payload as String]'/>
+		<set-payload value="#[20]" doc:name="Set Payload" doc:id="a6c670b3-7ae7-45f5-84d2-52d8d137c306" />
+		<logger level="INFO" doc:name="Logger" doc:id="6d1c41a2-2f9a-4e27-85f4-7590ea6f2611" message='#["After message received using VM Listener (After set new payload)::::: The payload is " ++ payload as String]'/>
+	</flow>
+	<flow name="practicing-mulesoftFlow2" doc:id="530cd536-1648-4634-adcb-ec395ab60e11" >
+		<http:listener doc:name="Listener" doc:id="feaa4a1d-a0dd-4118-ac30-b47f06c1ab1d" config-ref="HTTP_Listener_config" path="/vm2">
+			<http:response >
+				<http:body ><![CDATA[#[output application/json --- payload]]]></http:body>
+			</http:response>
+		</http:listener>
+		<set-payload value="#[10]" doc:name="Set Payload" doc:id="0138a7fe-aad2-4f8e-90c1-e6407903460a" />
+		<vm:publish queueName="VM2" doc:name="Publish" doc:id="cc1b006a-3c6a-4db4-9edb-4603d6622e44" config-ref="VM_Config"/>
+		<logger level="INFO" doc:name="Logger" doc:id="3a8ba967-ffbd-4b4f-aaa4-8633167d4215" message='#["Before publishing to VM Publish ::::: The payload is " ++ payload as String]' />
+		<logger level="INFO" doc:name="Logger" doc:id="c0a54d3a-fb50-4d32-9faf-320fd7b14e9b" message='#["After publishing to VM Publish ::::: The payload is " ++ payload as String]' />
+	</flow>
+	<flow name="practicing-mulesoftFlow3" doc:id="4fd1c0fd-e687-4edd-8dfc-556835331cbc" >
+		<http:listener doc:name="Listener" doc:id="9da670c1-caf4-4699-81a9-97e019c4f69b" config-ref="HTTP_Listener_config" path="/vm2consume">
+			<http:response >
+				<http:body ><![CDATA[#[output application/json --- payload]]]></http:body>
+			</http:response>
+		</http:listener>
+		<vm:consume queueName="VM2" doc:name="Consume" doc:id="629d20d4-025a-4fe1-8209-185169b99395" config-ref="VM_Config"/>
+		<logger level="INFO" doc:name="Logger" doc:id="465c2c3b-ddc8-4727-b751-e6c01cbd4884" message='#["After message received using VM Listener (before set new payload)::::: The payload is " ++ payload as String]' />
+		<set-payload value="#[20]" doc:name="Set Payload" doc:id="932372d0-61f4-4d21-bf4d-aaaf02b6f470" />
+		<logger level="INFO" doc:name="Logger" doc:id="f7de5894-9a12-417d-b8c5-90d2acfa4ee1" message='#["After message received using VM Listener (After set new payload)::::: The payload is " ++ payload as String]' />
+	</flow>
+</mule>
