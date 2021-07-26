@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:vm="http://www.mulesoft.org/schema/mule/vm"
-	xmlns:http="http://www.mulesoft.org/schema/mule/http"
-	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+<mule xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:vm="http://www.mulesoft.org/schema/mule/vm"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
 http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd
-http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
 	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="bb70c19e-0aa8-440b-94df-31804f70e298" >
 		<http:listener-connection host="0.0.0.0" port="8081" />
 	</http:listener-config>
@@ -15,6 +16,9 @@ http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/
 			<vm:queue queueName="VM2" />
 		</vm:queues>
 	</vm:config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="4613f0ab-aa84-464a-b3e5-a70185ef599e" >
+		<db:mssql-connection host="localhost" instanceName="MSSQL" port="0" user="sa" password="1234" databaseName="test" />
+	</db:config>
 	<flow name="practicing-mulesoftFlow" doc:id="8b1794ae-88ce-4218-8924-7bdf83788918" >
 		<http:listener doc:name="Listener" doc:id="630ef5b8-cddc-49e5-9feb-86bbc11f0348" config-ref="HTTP_Listener_config" path="/vm"/>
 		<set-payload value="#[10]" doc:name="Set Payload" doc:id="01bd6ed9-8418-4b52-a682-5eb8c40cd4a4" />
@@ -60,5 +64,13 @@ output application/json
 		<logger level="INFO" doc:name="Logger" doc:id="465c2c3b-ddc8-4727-b751-e6c01cbd4884" message='#["After message received using VM Listener (before set new payload)::::: The payload is " ++ payload as String]' />
 		<set-payload value="#[20]" doc:name="Set Payload" doc:id="932372d0-61f4-4d21-bf4d-aaaf02b6f470" />
 		<logger level="INFO" doc:name="Logger" doc:id="f7de5894-9a12-417d-b8c5-90d2acfa4ee1" message='#["After message received using VM Listener (After set new payload)::::: The payload is " ++ payload as String]' />
+	</flow>
+	<flow name="practicing-mulesoftFlow5" doc:id="c9ead75e-ad53-414c-82f4-51b9dae7a35a" >
+		<db:listener table="BankDetails" doc:name="On Table Row" doc:id="02c347ca-a393-4aa6-ad19-aaff1e793f16" config-ref="Database_Config" watermarkColumn="Id">
+			<scheduling-strategy >
+				<fixed-frequency frequency="15" timeUnit="SECONDS" />
+			</scheduling-strategy>
+		</db:listener>
+		<logger level="INFO" doc:name="Logger" doc:id="b6b6125c-539e-4a3d-97bc-5002795e6a9b" message="#[payload]"/>
 	</flow>
 </mule>
