@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<flow name="dataweaveFlow" doc:id="f92f8af9-35be-4a61-bbc5-8bc50f82530a" >
+		<ee:transform doc:name="map/mapObject" doc:id="1cdfb5de-dad1-4131-a207-b8fb417e6767" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+//var a = {"name" : "Iyad", id:2}
+//var a = [
+//	{"name" : "Mary", id:[1,2,3]},
+//	{"name" : "Mike", id:[4,5,6]}
+//]
+//var a = [
+//	{"name" : "Mary", id:[{roll:1},{roll:2},{roll:3}]},
+//	{"name" : "Mike", id:[{roll:12},{roll:21},{roll:23}]}
+//]
+//var a = 
+//	{
+//	"name": "Mary",
+//	id: "2",
+//	"tech":{
+//		"main": "mule"
+//	}
+//}
+
+var a = 
+	{
+	"name": "Mary",
+	id: "2",
+	"tech":[{
+		"main": "mule"
+	},
+	{
+		"hello": "test"
+	}]
+}
+var b = "RollNo"
+---
+a.tech map{
+	"$$":$
+} // -> [{"0":{"main":"mule"}},{"1":{"hello":"tesT"}}]
+
+//a mapObject(value,key,index) ->{
+//	v: value,
+//	k: key,
+//	i: index
+//	
+//} // -> {"v":"Mary","k":"name","i":0,"v":2,"k":"id","i":1,"v":[{"main":"mule"}],"k":"tech","i":2}
+
+//a.id..roll  // IYAD
+//a.id[0].roll
+
+//a map(value,index)->{
+//	"value": value.name,
+//	"index": index,
+//	"NewID": value.id map { key: $.roll ++ value.name} 
+//}  
+
+//a map {
+//	"What is \$": $
+////	"What is \$\$": $$
+//	
+//}
+
+//a map {
+//	"Candidate": upper($.name), //$["name"]
+//	'$(b)': $.id //"id": $.id   //passing dynamic keys
+//}   // -> [{"Candidate" : "MARY", "RollNo":[1,2,3]},{"Candidate" : "MIKE", "RollNo":[4,5,6]}]
+// a map $ //same as a (the whole thing)
+//a["name"] // -> ["Mary","Mike"]
+//a.name  // -> ["Mary","Mike"]]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="dataweaveFlow1" doc:id="8e27bf19-7768-42c3-8a2e-32c3660f4882" >
+		<ee:transform doc:name="flatten" doc:id="5316418b-032c-4f15-98c7-6d879a4cfb93" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+var a = [1,2,3]
+var x = [4,5,6]
+var b = [{"name":"Mike"},{"name":"Mary"}]
+var c = {"id": 2}
+var d = [a,b]
+var z = [a,x]
+
+---
+// Flatten is applied on arrays/accepts single arg/result in array
+
+
+[a,x] // -> [[1,2,3],[4,5,6]]
+//flatten(a+x) // -> [1,2,3,4,5,6]
+//flatten([a,x]) // -> [1,2,3,4,5,6]
+//d // -> [[1,2,3],[{"name":"Mike"},{"name":"Mary"}]]
+//flatten(d) // -> [1,2,3,{"name": "Mike"}, {"name":"Mary"}]
+//flatten([c]) //has to change to array -> [{"id":2}]
+//a+c // -> [1,2,3,{"id":2}]
+//flatten(a+c) // -> [1,2,3,{"id":2}]
+//z // -> [[1,2,3],[4,5,6]]
+//flatten(z) // -> [1,2,3,4,5,6]
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="dataweaveFlow2" doc:id="51489abf-2ef6-44f2-a852-9ff0c3575af7" >
+		<ee:transform doc:name="pluck" doc:id="803fb4cf-f0e6-4707-95b8-22bb55e1834d" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+//output application/xml
+output application/json
+var a = read("<prices>
+	<basic>9.99</basic>
+	<premium>53.00</premium>
+	<vip>398.99</vip>
+	</prices>","application/xml")
+	
+var b = [
+	{"name" : "Mike"},
+	{"name": "Mary"}
+]
+---
+/*
+ * Pluck can only be applied on Object. The result will be an array
+ * Replace pluck with mapObject and observe
+ */
+
+// a.prices mapObject(x,y,z)-> {
+// 	"x": x,  // "9.99"  value
+// 	"y": y, // "basic" key
+// 	"z": z  // 0 index
+// }    
+ 
+a.prices pluck $$$  // --> [0,1,2]
+// a.prices pluck $$  // --> ["basic","premium","vip"]
+// a.prices pluck $  // --> ["9.99","53.00","398.99"] 
+// a pluck $$$ // ---> [0]
+// a pluck $$ // ---> ["prices"]
+// a pluck $  // ---> [{"basic": "9.99"}, {"premium": "53.00"}, {"vip": "398.99"}]
+//a]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="dataweaveFlow3" doc:id="a735ea86-4b44-4cc7-a6dd-9f1784920272" >
+		<ee:transform doc:name="reduce" doc:id="1055c8a5-c188-4db1-9738-af1b722b447d" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+var a = [
+	{"name": "Mike", "id" : 1},
+	{"name": "Mary", "id" : 2}
+]
+---
+// Reduce applied on array -> result object/single value
+
+
+a.id reduce ((item,acc) -> acc + acc) // 2 -> 1 + 1
+//a.id reduce ((item,acc=3) -> acc + acc) // 12 -> (3+3) + (3+3)
+//a.id reduce ((item,acc) ->  acc * acc) // 1 -> 1 * 1 //try id=5 -> 25 (5*5) 
+//a.id reduce ((item,acc=5) ->  acc * acc) // 625 -> (5*5) * (5*5)
+//a.id reduce ((item,acc=5) -> item * acc) // 10 -> (1 * 2) * 5
+//a.id reduce ((item,acc=5) -> item + acc) // 8 -> (1 + 2) * 5
+//a.id reduce ((item,acc) -> item)  // 2
+//a.id reduce ((item,acc) -> acc)   // 1
+//a.id reduce ($$)
+//["Mike", 2,3,4,5] reduce ($) // last value 5
+//["Mike", 2,3,4,5] reduce ($$) // first value "Mike"
+//["Mike", 2,3,4,5] reduce ($++$$) // all values "5432Mike"
+//[1, 2,"Mike",3,4,5] reduce ($++$$) // all values "543Mike21"
+//[1, 2,"Mike",3,4,5] reduce ($$++$) // all values "12Mike345"
+//["Mike", 2,3,4,5] ++ [10] reduce ($$ ++ " " ++ $) //"Mike 2 3 4 5 10"
+//[1,2,3,4,5] reduce ($+$$) // 15]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="dataweaveFlow4" doc:id="93f46c2e-ddbf-446d-baea-9568d485f5f1">
+		<ee:transform doc:name="working with dates" doc:id="7a6f4812-89a1-45a7-bb95-ff95c308cd88">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+import * from dw::core::Types
+output application/json
+var a = now()
+---
+{
+	"Current": now(),
+	"CST": now() >> "CST",
+	"EST": now() >> "EST",
+	"Date to String": a as String {format:"yyyy/MM/dd:hh:mm:ss"},
+	"Date to String": a as String {format:"MMM,yyyy"},
+	"Date to String": a as String {format:"MMMM d,yyyy"},
+	"String to Date": "2021-07-29T15:38:55.841-04:00" as Date as String {format:"yyyy-MM-dd"},
+	"String to Date": "2021-07-29T15:38:55.841-04:00" as DateTime as Number,
+	"AX": ("1627587535" as Number) as DateTime,
+	"Adding days": (now() as Date) + |P2D|,
+	"Adding days": (now() as Date) + |P2M|,
+	"Adding days": (now() as Date) + |P2Y|,
+	"typeOf": typeOf("2021-07-29T15:38:55.841-04:00" as Date),
+	"SubtractHours": ("2021-07-29" as Date) - ("2021-06-29" as Date),
+	"SubtractDays": (("2021-07-29" as Date) - ("2021-06-29" as Date)).days,
+	"IsDateType": isDateType(Date),
+	"IsDateType": isDateType(String),
+	
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>

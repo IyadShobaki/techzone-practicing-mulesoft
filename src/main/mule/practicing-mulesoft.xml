@@ -116,7 +116,7 @@ output application/json
 				<batch:step name="Batch_Step" doc:id="8058b7c5-1b25-4d1d-8682-cfd7815bf91b" acceptPolicy="ALL">
 					<set-payload value="#[payload as Number * 10]" doc:name="payload * 10" doc:id="5bb3a849-33b5-44ee-a2ce-63d0f9a0aaa5" />
 					<batch:aggregator doc:name="Batch Aggregator" doc:id="81fa98ab-e31e-4b17-9cf4-9d2d88638b59" size="2">
-						<logger level="INFO" doc:name="Logger" doc:id="b852d663-36f9-4049-b19a-760410d98990" message='#[["Batch step 1 values are :::: "] ++ payload]'/>
+						<logger level="INFO" doc:name="Logger" doc:id="b852d663-36f9-4049-b19a-760410d98990" message='#[["Batch step 1 values are :::: "] ++ payload reduce($$ ++ " " ++$)]'/>
 					</batch:aggregator>
 				</batch:step>
 				<batch:step name="Batch_Step1" doc:id="d76b2975-6cc0-4e44-b8ee-d06f404ae90b" acceptPolicy="ONLY_FAILURES">

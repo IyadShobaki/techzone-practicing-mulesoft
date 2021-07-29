@@ -1,0 +1,241 @@
+Mulesoft notes:
+
+
+- #[P('')] has to be inside #[] (dataweave expression)
+- #['${http.port}'] or ${http.port} has to be string literal 
+- Click on "Transform Message" double click to make the space for the whole screen.
+ 
+- Two ways to deploy mule app
+  1- deploy using anypoint studio
+  2- deploy using anypoint platform add file -> choose jar file from target folder inside project folders
+  
+Add policies without proxy:
+ - Create RAML spec and publish it to exchange
+ - Go to API manager and add -> Manage API from Exchange
+ - Choose Basic Enpoint
+ - After saving take API id 
+ - Inside anypoint studio add API id to global configuration -> API Autodiscovery element
+ - Add client id and client secret (you can find them inside Access Managment -> Enviroments)
+	to the properties before deploy once again
+ - Add policies (basic authentication, rate limit,etc...)
+ 
+Add policies by creating proxy:
+ - Create RAML spec and publish it to exchange
+ - Go to API manager and add -> Manage API from Exchange
+ - Choose Endpoint with Proxy instead of the basic
+ - for the implemetnation url -> example (http://Example.us-e2.cloudhub.io/api) without back slash
+ - Deployment Configuration -> Runtime version: 4.3.0 / proxy app name -> myfirstapp-proxy
+ (Mule will generate the API id and apply auto discovery and configure client id and secret)
+ - From Runtime manager take the App url (proxy app) and add it to (Add consumer endpoint) inside API manager
+  example -> (http://Example.us-e2.cloudhub.io/) with back slash
+  
+  
+  
+******* Dataweave
+
+---- Reduce
+
+%dw 2.0
+output application/json
+var a = [
+	{"name": "Mike", "id" : 1},
+	{"name": "Mary", "id" : 2}
+]
+---
+// Reduce applied on array -> result object/single value
+
+
+a.id reduce ((item,acc) -> acc + acc) // 2 -> 1 + 1
+//a.id reduce ((item,acc=3) -> acc + acc) // 12 -> (3+3) + (3+3)
+//a.id reduce ((item,acc) ->  acc * acc) // 1 -> 1 * 1 //try id=5 -> 25 (5*5) 
+//a.id reduce ((item,acc=5) ->  acc * acc) // 625 -> (5*5) * (5*5)
+//a.id reduce ((item,acc=5) -> item * acc) // 10 -> (1 * 2) * 5
+//a.id reduce ((item,acc=5) -> item + acc) // 8 -> (1 + 2) * 5
+//a.id reduce ((item,acc) -> item)  // 2
+//a.id reduce ((item,acc) -> acc)   // 1
+//a.id reduce ($$)
+//["Mike", 2,3,4,5] reduce ($) // last value 5
+//["Mike", 2,3,4,5] reduce ($$) // first value "Mike"
+//["Mike", 2,3,4,5] reduce ($++$$) // all values "5432Mike"
+//[1, 2,"Mike",3,4,5] reduce ($++$$) // all values "543Mike21"
+//[1, 2,"Mike",3,4,5] reduce ($$++$) // all values "12Mike345"
+//["Mike", 2,3,4,5] ++ [10] reduce ($$ ++ " " ++ $) //"Mike 2 3 4 5 10"
+//[1,2,3,4,5] reduce ($+$$) // 15
+ 
+ 
+---- Pluck
+
+ %dw 2.0
+//output application/xml
+output application/json
+var a = read("<prices>
+	<basic>9.99</basic>
+	<premium>53.00</premium>
+	<vip>398.99</vip>
+	</prices>","application/xml")
+	
+var b = [
+	{"name" : "Mike"},
+	{"name": "Mary"}
+]
+---
+/*
+ * Pluck can only be applied on Object. The result will be an array
+ * Replace pluck with mapObject and observe
+ */
+
+// a.prices mapObject(x,y,z)-> {
+// 	"x": x,  // "9.99"  value
+// 	"y": y, // "basic" key
+// 	"z": z  // 0 index
+// }    
+ 
+a.prices pluck $$$  // --> [0,1,2]
+// a.prices pluck $$  // --> ["basic","premium","vip"]
+// a.prices pluck $  // --> ["9.99","53.00","398.99"] 
+// a pluck $$$ // ---> [0]
+// a pluck $$ // ---> ["prices"]
+// a pluck $  // ---> [{"basic": "9.99"}, {"premium": "53.00"}, {"vip": "398.99"}]
+//a
+
+
+
+---- Flatten
+
+%dw 2.0
+output application/json
+var a = [1,2,3]
+var x = [4,5,6]
+var b = [{"name":"Mike"},{"name":"Mary"}]
+var c = {"id": 2}
+var d = [a,b]
+var z = [a,x]
+
+---
+// Flatten is applied on arrays/accepts single arg/result in array
+
+
+[a,x] // -> [[1,2,3],[4,5,6]]
+//flatten(a+x) // -> [1,2,3,4,5,6]
+//flatten([a,x]) // -> [1,2,3,4,5,6]
+//d // -> [[1,2,3],[{"name":"Mike"},{"name":"Mary"}]]
+//flatten(d) // -> [1,2,3,{"name": "Mike"}, {"name":"Mary"}]
+//flatten([c]) //has to change to array -> [{"id":2}]
+//a+c // -> [1,2,3,{"id":2}]
+//flatten(a+c) // -> [1,2,3,{"id":2}]
+//z // -> [[1,2,3],[4,5,6]]
+//flatten(z) // -> [1,2,3,4,5,6]
+
+
+---- Two dots .. 
+
+var a = [
+	{"name" : "Mary", id:[{roll:1},{roll:2},{roll:3}]},
+	{"name" : "Mike", id:[{roll:12},{roll:21},{roll:23}]}
+]
+
+a.id..roll // -> [1,2,3,12,21,23]
+a.id[0].roll // -> [1,2,3]
+
+
+---- map
+var a = [
+	{"name" : "Mary", id:[1,2,3]},
+	{"name" : "Mike", id:[4,5,6]}
+]
+
+var b = "RollNo"
+
+//a map {
+//	"Candidate": upper($.name), //$["name"]
+//	'$(b)': $.id //"id": $.id   //passing dynamic keys
+//}   // -> [{"Candidate" : "MARY", "RollNo":[1,2,3]},{"Candidate" : "MIKE", "RollNo":[4,5,6]}]
+// a map $ //same as a (the whole thing)
+//a["name"] // -> ["Mary","Mike"]
+//a.name  // -> ["Mary","Mike"]
+
+.................
+var a = [
+	{"name" : "Mary", id:[{roll:1},{roll:2},{roll:3}]},
+	{"name" : "Mike", id:[{roll:12},{roll:21},{roll:23}]}
+]
+
+a map(value,index)->{
+	"value": value.name,
+	"index": index,
+	"NewID": value.id map { key: $.roll ++ value.name} 
+}  // ->  [{"value": "Mary","index": 0,"NewID": [{"key": "1Mary"},{"key": "2Mary"},{"key": "3Mary"}]},
+		   {"value": "Mike","index": 1,"NewID": [{"key": "12Mike"},{"key": "21Mike"},{"key": "23Mike"}]}]
+
+
+.....................
+var a = 
+	{
+	"name": "Mary",
+	id: "2",
+	"tech":{
+		"main": "mule"
+	}
+}
+
+a mapObject(value,key,index) ->{
+	v: value,
+	k: key,
+	i: index
+	
+} // -> {"v":"Mary","k":"name","i":0,"v":2,"k":"id","i":1,"v":{"main":"mule"},"k":"tech","i":2}
+
+.....................
+var a = 
+	{
+	"name": "Mary",
+	id: "2",
+	"tech":[{
+		"main": "mule"
+	},
+	{
+		"hello": "test"
+	}]
+}
+a mapObject(value,key,index) ->{
+	v: value,
+	k: key,
+	i: index
+	
+} // -> {"v":"Mary","k":"name","i":0,"v":2,"k":"id","i":1,"v":[{"main":"mule"}],"k":"tech","i":2}
+
+a.tech map{
+	"$$":$
+} // -> [{"0":{"main":"mule"}},{"1":{"hello":"tesT"}}]
+
+
+------ Date
+
+%dw 2.0
+import * from dw::core::Types
+output application/json
+var a = now()
+---
+{
+	"Current": now(), // -> "Current": "2021-07-29T15:59:09.252-04:00"
+	"CST": now() >> "CST",// -> "CST": "2021-07-29T14:59:09.252-05:00",
+	"EST": now() >> "EST",// ->  "EST": "2021-07-29T14:59:09.253-05:00",
+	"Date to String": a as String {format:"yyyy/MM/dd:hh:mm:ss"},// ->  "Date to String": "2021/07/29:03:59:09",
+	"Date to String": a as String {format:"MMM,yyyy"},// ->  "Date to String": "Jul,2021",
+	"Date to String": a as String {format:"MMMM d,yyyy"},// ->  "Date to String": "July 29,2021",
+	"String to Date": "2021-07-29T15:38:55.841-04:00" as Date as String {format:"yyyy-MM-dd"},// ->  "String to Date": "2021-07-29",
+	
+	"String to Date": "2021-07-29T15:38:55.841-04:00" as DateTime as Number,// ->  "String to Date": 1627587535,
+	"AX": ("1627587535" as Number) as DateTime,// ->"AX": "2021-07-29T19:38:55Z",
+	"Adding days": (now() as Date) + |P2D|,// ->"Adding days": "2021-07-31",
+	"Adding days": (now() as Date) + |P2M|,// ->"Adding days": "2021-09-29",
+	"Adding days": (now() as Date) + |P2Y|,// ->"Adding days": "2023-07-29",
+	"typeOf": typeOf("2021-07-29T15:38:55.841-04:00" as Date),// ->"typeOf": "Date",
+	"SubtractHours": ("2021-07-29" as Date) - ("2021-06-29" as Date),// ->"SubtractHours": "PT720H",
+	"SubtractDays": (("2021-07-29" as Date) - ("2021-06-29" as Date)).days,// ->"SubtractDays": 30,
+	"IsDateType": isDateType(Date),// ->"IsDateType": true,
+	"IsDateType": isDateType(String),// ->"IsDateType": false
+	
+}
+
+  
